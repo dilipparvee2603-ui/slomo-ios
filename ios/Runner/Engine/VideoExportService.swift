@@ -84,11 +84,13 @@ public class VideoExportService {
 
         // Setup AVAssetWriter
         let writer = try AVAssetWriter(outputURL: parameters.outputURL, fileType: parameters.fileType)
-        let videoCompressionSettings: [String: Any] = [
+        var videoCompressionSettings: [String: Any] = [
             AVVideoAverageBitRateKey: parameters.bitrate,
-            AVVideoProfileLevelKey: (parameters.codec == .hevc) ? AVVideoProfileLevelHEVCMainAutoLevel : AVVideoProfileLevelH264HighAutoLevel,
             AVVideoExpectedSourceFrameRateKey: parameters.outputFps
         ]
+        if parameters.codec == .h264 {
+            videoCompressionSettings[AVVideoProfileLevelKey] = AVVideoProfileLevelH264HighAutoLevel
+        }
         let writerOutputSettings: [String: Any] = [
             AVVideoCodecKey: parameters.codec,
             AVVideoWidthKey: outputWidth,
