@@ -26,7 +26,7 @@ class _ExportSheetState extends State<ExportSheet> {
   OutputFrameRate _frameRate = OutputFrameRate.fps60;
   OpticalFlowEngineType _engineType = OpticalFlowEngineType.appleVisionMetal;
   AudioMode _audioMode = AudioMode.retimedPitchPreserved;
-  BitrateQuality _quality = BitrateQuality.high;
+  final BitrateQuality _quality = BitrateQuality.high;
 
   String _formatFileSize(int bytes) {
     if (bytes < 1024 * 1024) {

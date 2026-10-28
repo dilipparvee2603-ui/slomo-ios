@@ -193,14 +193,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: AppColors.accentCyan.withOpacity(0.5)),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.bolt, color: AppColors.accentCyan, size: 14),
-                              SizedBox(width: 4),
+                              const Icon(Icons.bolt, color: AppColors.accentCyan, size: 14),
+                              const SizedBox(width: 4),
                               Text(
-                                'METAL GPU',
-                                style: TextStyle(
+                                _capabilities?['metalSupported'] == false ? 'VISION FLOW' : 'METAL GPU',
+                                style: const TextStyle(
                                   color: AppColors.accentCyan,
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
