@@ -1,0 +1,109 @@
+name: Build iOS IPA (SideStore / Sideloadly)
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'lib/**'
+      - 'ios/**'
+      - 'test/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/build-ios.yml'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-ios:
+    name: Build & Package iOS IPA
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java & Flutter Environment
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Select Latest Xcode
+        run: |
+          sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Verify Flutter Installation
+        run: flutter doctor -v
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Run Dart & Flutter Static Analysis
+        run: flutter analyze
+
+      - name: Run Automated Unit & Math Tests
+        run: flutter test
+
+      - name: Bump Version & Build Number
+        run: |
+          VERSION="1.0.${{ github.run_number }}"
+          BUILD="${{ github.run_number }}"
+          echo "Setting App Version: $VERSION (Build $BUILD)"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD" ios/Runner/Info.plist
+
+      - name: Build Flutter iOS App Bundle (Unsigned)
+        run: |
+          flutter build ios --release --no-codesign
+
+      - name: Package .IPA for SideStore / Sideloadly
+        run: |
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          if [ ! -d "$APP_PATH" ]; then
+            APP_PATH=$(find build/ios -name "Runner.app" -type d | head -n 1)
+          fi
+          echo "Found compiled app at: $APP_PATH"
+
+          mkdir -p "$APP_PATH/Frameworks"
+
+          # Ad-hoc sign all embedded frameworks and main binary to prepare for sideloading resign
+          echo "Ad-hoc code signing frameworks..."
+          find "$APP_PATH/Frameworks" -mindepth 1 -maxdepth 1 -name "*.framework" -exec /usr/bin/codesign --force --sign - --timestamp=none {} \; 2>/dev/null || true
+          /usr/bin/codesign --force --sign - --timestamp=none "$APP_PATH" 2>/dev/null || true
+
+          # Create Payload directory structure for IPA
+          mkdir -p Payload
+          cp -r "$APP_PATH" Payload/
+          zip -r -y SloMoCreatorPro.ipa Payload
+          ls -lh SloMoCreatorPro.ipa
+
+      - name: Upload .IPA Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SloMoCreatorPro-iOS-IPA
+          path: SloMoCreatorPro.ipa
+          retention-days: 14
+
+      - name: Publish Versioned GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        with:
+          tag_name: "v1.0.${{ github.run_number }}"
+          name: "Slo-Mo Creator Pro iOS v1.0.${{ github.run_number }}"
+          body: |
+            ### 🚀 Slo-Mo Creator Pro iOS v1.0.${{ github.run_number }}
+            
+            **Direct IPA Sideload Download:**
+            Download **`SloMoCreatorPro.ipa`** below and install via **SideStore**, **Sideloadly**, or **AltStore** using your personal free Apple ID.
+            
+            - **App Version**: `1.0.${{ github.run_number }}`
+            - **Build**: `${{ github.run_number }}`
+            - **Engine**: Apple Vision `VNGenerateOpticalFlowRequest` + Metal GPU Bidirectional Warping
+            - **Export**: 30, 60, 120 FPS HEVC / H.264 with Pitch-Preserved Audio Retiming
+          files: |
+            SloMoCreatorPro.ipa
